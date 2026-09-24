@@ -1,6 +1,10 @@
-import { BarChart3, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart3, Lock, TrendingDown, TrendingUp } from "lucide-react";
 import { useState } from "react";
+import { BackupReminder } from "./components/BackupReminder";
+import { PinGate } from "./components/PinGate";
 import { SummaryStrip } from "./components/SummaryStrip";
+import { downloadFullBackupCSV } from "./lib/csv";
+import { isUnlocked, lockNow } from "./lib/pin";
 import { AnalyticsTab } from "./screens/AnalyticsTab";
 import { RevenueTab } from "./screens/RevenueTab";
 import { SpendTab } from "./screens/SpendTab";
@@ -15,6 +19,16 @@ const TABS: { key: Tab; label: string; icon: typeof TrendingDown }[] = [
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("spend");
+  const [unlocked, setUnlocked] = useState(isUnlocked());
+
+  if (!unlocked) {
+    return <PinGate onUnlock={() => setUnlocked(true)} />;
+  }
+
+  function handleLock() {
+    lockNow();
+    setUnlocked(false);
+  }
 
   return (
     <div className="flex h-dvh flex-col bg-paper md:flex-row">
@@ -41,13 +55,28 @@ export default function App() {
             );
           })}
         </nav>
+        <button
+          type="button"
+          onClick={handleLock}
+          className="pressable label mt-auto flex items-center gap-3 rounded-lg px-3 py-3 text-left text-grey"
+        >
+          <Lock size={18} className="text-grey" />
+          <span>Lock</span>
+        </button>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b border-ink-line bg-paper px-4 py-3 md:hidden">
-          <div className="font-display text-base font-semibold text-ink">Vaarahi Super Market</div>
-          <div className="label mt-0.5 text-grey-dim">made. ledger</div>
+        <header className="flex items-center justify-between border-b border-ink-line bg-paper px-4 py-3 md:hidden">
+          <div>
+            <div className="font-display text-base font-semibold text-ink">Vaarahi Super Market</div>
+            <div className="label mt-0.5 text-grey-dim">made. ledger</div>
+          </div>
+          <button type="button" onClick={handleLock} className="pressable rounded-full p-2 text-grey-dim" aria-label="Lock">
+            <Lock size={18} />
+          </button>
         </header>
+
+        <BackupReminder onExport={downloadFullBackupCSV} />
 
         <SummaryStrip />
 
@@ -58,7 +87,7 @@ export default function App() {
         </main>
 
         <nav
-          className="fixed inset-x-0 bottom-0 flex border-t border-ink-line bg-paper md:hidden"
+          className="fixed inset-x-0 bottom-0 z-10 flex border-t border-ink-line bg-paper md:hidden"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           {TABS.map(({ key, label, icon: Icon }) => {

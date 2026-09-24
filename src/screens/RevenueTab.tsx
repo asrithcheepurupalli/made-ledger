@@ -1,7 +1,8 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { db } from "../db";
+import { db, type Transaction } from "../db";
+import { EditTransactionModal } from "../components/EditTransactionModal";
 import { EntryForm } from "../components/EntryForm";
 import { dayLabel, shiftDay, todayISO } from "../lib/dateUtils";
 
@@ -11,6 +12,7 @@ function formatINR(amount: number): string {
 
 export function RevenueTab() {
   const [date, setDate] = useState(todayISO());
+  const [editing, setEditing] = useState<Transaction | null>(null);
 
   const rows = useLiveQuery(
     () => db.transactions.where("date").equals(date).and((t) => t.type === "revenue").reverse().sortBy("createdAt"),
@@ -68,7 +70,12 @@ export function RevenueTab() {
             <p className="py-4 text-sm text-grey-dim">No revenue logged for this day.</p>
           )}
           {(rows ?? []).map((t) => (
-            <div key={t.id} className="flex items-center justify-between py-3">
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setEditing(t)}
+              className="pressable flex w-full items-center justify-between py-3 text-left"
+            >
               <div>
                 <div className="text-sm text-ink md:text-base">{t.reason}</div>
                 <div className="label mt-0.5 text-grey-dim">
@@ -76,10 +83,12 @@ export function RevenueTab() {
                 </div>
               </div>
               <div className="num text-base font-bold text-ink md:text-lg">₹{formatINR(t.amount)}</div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+
+      {editing && <EditTransactionModal transaction={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }

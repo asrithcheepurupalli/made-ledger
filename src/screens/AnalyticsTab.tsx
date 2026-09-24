@@ -1,7 +1,8 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, HardDriveDownload } from "lucide-react";
 import { useState } from "react";
 import { db, type Transaction } from "../db";
+import { downloadFullBackupCSV, downloadMonthCSV } from "../lib/csv";
 
 function formatINR(amount: number): string {
   return amount.toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -23,25 +24,6 @@ function dayLabel(dateStr: string): string {
     day: "numeric",
     month: "short",
   });
-}
-
-function toCSV(rows: Transaction[]): string {
-  const header = ["Date", "Type", "Reason", "Category", "Amount", "Mode"];
-  const lines = rows.map((r) =>
-    [r.date, r.type, JSON.stringify(r.reason), JSON.stringify(r.category), r.amount, r.mode].join(","),
-  );
-  return [header.join(","), ...lines].join("\n");
-}
-
-function downloadCSV(monthKey: string, rows: Transaction[]) {
-  const csv = toCSV(rows);
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `made-ledger-${monthKey}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 interface DayGroup {
@@ -226,15 +208,25 @@ export function AnalyticsTab() {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => downloadCSV(monthKey, data)}
-        disabled={data.length === 0}
-        className="pressable label flex items-center justify-center gap-2 rounded-lg border border-ink-line py-3 text-ink disabled:opacity-40"
-      >
-        <Download size={14} />
-        Export CSV
-      </button>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => downloadMonthCSV(monthKey, data)}
+          disabled={data.length === 0}
+          className="pressable label flex items-center justify-center gap-2 rounded-lg border border-ink-line py-3 text-ink disabled:opacity-40"
+        >
+          <Download size={14} />
+          Export month
+        </button>
+        <button
+          type="button"
+          onClick={() => downloadFullBackupCSV()}
+          className="pressable label flex items-center justify-center gap-2 rounded-lg border border-ink-line py-3 text-ink"
+        >
+          <HardDriveDownload size={14} />
+          Back up all data
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,8 +1,12 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { db, type PaymentMode, type TransactionType } from "../db";
 import { EXPENSE_CATEGORIES, REVENUE_CATEGORIES, learnOverride, suggestCategory } from "../lib/categorize";
 import { dayLabel, todayISO } from "../lib/dateUtils";
+
+function formatINR(amount: number): string {
+  return amount.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+}
 
 interface EntryFormProps {
   type: TransactionType;
@@ -17,6 +21,19 @@ export function EntryForm({ type, date, onSaved }: EntryFormProps) {
   const [category, setCategory] = useState<string>("");
   const [touched, setTouched] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [toast, setToast] = useState<{ id: number; amount: number } | null>(null);
+  const reasonRef = useRef<HTMLInputElement>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    reasonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
 
   const overrides = useLiveQuery(() => db.categoryOverrides.toArray(), [], []);
   const pastEntries = useLiveQuery(
@@ -73,7 +90,7 @@ export function EntryForm({ type, date, onSaved }: EntryFormProps) {
 
     const finalCategory = category || suggested;
 
-    await db.transactions.add({
+    const id = await db.transactions.add({
       type,
       reason: reason.trim(),
       category: finalCategory,
@@ -93,6 +110,18 @@ export function EntryForm({ type, date, onSaved }: EntryFormProps) {
     setTouched(false);
     setShowSuggestions(false);
     onSaved?.();
+    reasonRef.current?.focus();
+
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ id, amount: parsedAmount });
+    toastTimer.current = setTimeout(() => setToast(null), 5000);
+  }
+
+  async function handleUndo() {
+    if (!toast) return;
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    await db.transactions.delete(toast.id);
+    setToast(null);
   }
 
   return (
@@ -106,6 +135,7 @@ export function EntryForm({ type, date, onSaved }: EntryFormProps) {
       <div className="relative">
         <label className="label text-grey-dim">Reason</label>
         <input
+          ref={reasonRef}
           type="text"
           value={reason}
           onChange={(e) => handleReasonChange(e.target.value)}
@@ -191,6 +221,15 @@ export function EntryForm({ type, date, onSaved }: EntryFormProps) {
       >
         Save {type === "expense" ? "Expense" : "Revenue"}
       </button>
+
+      {toast && (
+        <div className="fixed inset-x-4 bottom-20 z-20 flex items-center justify-between gap-3 rounded-lg bg-ink px-4 py-3 text-paper shadow-lg md:inset-x-auto md:bottom-6 md:left-1/2 md:w-full md:max-w-sm md:-translate-x-1/2">
+          <span className="label">Saved ₹{formatINR(toast.amount)}</span>
+          <button type="button" onClick={handleUndo} className="pressable label text-gold-soft">
+            Undo
+          </button>
+        </div>
+      )}
     </div>
   );
 }
