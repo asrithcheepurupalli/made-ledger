@@ -2,15 +2,15 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { db, type PaymentMode, type TransactionType } from "../db";
 import { EXPENSE_CATEGORIES, REVENUE_CATEGORIES, learnOverride, suggestCategory } from "../lib/categorize";
+import { dayLabel, todayISO } from "../lib/dateUtils";
 
 interface EntryFormProps {
   type: TransactionType;
+  date: string;
   onSaved?: () => void;
 }
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
-
-export function EntryForm({ type, onSaved }: EntryFormProps) {
+export function EntryForm({ type, date, onSaved }: EntryFormProps) {
   const [reason, setReason] = useState("");
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<PaymentMode>("cash");
@@ -79,7 +79,7 @@ export function EntryForm({ type, onSaved }: EntryFormProps) {
       category: finalCategory,
       amount: parsedAmount,
       mode,
-      date: todayISO(),
+      date,
       createdAt: Date.now(),
     });
 
@@ -97,6 +97,12 @@ export function EntryForm({ type, onSaved }: EntryFormProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      {date !== todayISO() && (
+        <div className="label rounded-lg bg-gold-soft/20 px-3 py-2 text-ink">
+          Logging for {dayLabel(date)}
+        </div>
+      )}
+
       <div className="relative">
         <label className="label text-grey-dim">Reason</label>
         <input
